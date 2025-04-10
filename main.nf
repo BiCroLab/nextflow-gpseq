@@ -232,12 +232,20 @@ process CORRECT_POS {
 		"""
 		export TMPDIR=\$PWD
 		sambamba view ${bam} -h -f bam -F "reverse_strand" | \\
-		convert2bed --input=bam - | \\
-		cut -f 1-4 | sed 's/~/\t/g' | cut -f 1,3,7,16 | gzip > ${sample}.forward.bed.gz
+		 convert2bed --input=bam - | \\
+                 cut -f 1-4 | \\
+                 sed 's/~/\t/g' | \\
+                 cut -f 1,3,7,16 | \\
+		 awk '$3 !~ /N/' | \\
+                 gzip > ${sample}.forward.bed.gz
 		
 		sambamba view ${bam} -h -f bam -F "not reverse_strand" | \\
-    convert2bed --input=bam - | \\
-    cut -f 1-4 | sed 's/~/\t/g' | cut -f 1,2,7,16 | gzip > ${sample}.reverse.bed.gz
+   		 convert2bed --input=bam - | \\
+                 cut -f 1-4 | \\
+                 sed 's/~/\t/g' | \\
+                 cut -f 1,2,7,16 | \\
+		 awk '$3 !~ /N/' | \\
+                 gzip > ${sample}.reverse.bed.gz
 		"""
 }
 

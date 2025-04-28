@@ -236,7 +236,7 @@ process CORRECT_POS {
                  cut -f 1-4 | \\
                  sed 's/~/\t/g' | \\
                  cut -f 1,3,7,16 | \\
-		 awk '$3 !~ /N/' | \\
+		 awk '\$3 !~ /N/' | \\
                  gzip > ${sample}.forward.bed.gz
 		
 		sambamba view ${bam} -h -f bam -F "not reverse_strand" | \\
@@ -244,7 +244,7 @@ process CORRECT_POS {
                  cut -f 1-4 | \\
                  sed 's/~/\t/g' | \\
                  cut -f 1,2,7,16 | \\
-		 awk '$3 !~ /N/' | \\
+		 awk '\$3 !~ /N/' | \\
                  gzip > ${sample}.reverse.bed.gz
 		"""
 }

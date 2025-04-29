@@ -325,9 +325,7 @@ process GENERATE_BED {
 		
 	script:
 		"""
-		zcat ${umi_dedup} | \
-		awk 'BEGIN{{FS=OFS="\t"}}{{print \$1 FS \$2 FS \$2 FS "pos_"NR FS \$4}}' |\\
-		gzip > ${sample}.bed.gz
+		zcat ${umi_dedup} | awk 'BEGIN{{FS=OFS="\t"}}{{print \$1, \$2, \$2, "pos_"NR, \$4}}' | sed 's/ //g' | gzip > ${sample}.bed.gz
 		"""
 }
 

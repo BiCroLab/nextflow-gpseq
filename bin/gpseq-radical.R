@@ -14,19 +14,15 @@ if ("--version" %in% commandArgs(trailingOnly = TRUE)) {
     quit()
 }
 if ("--debug-info" %in% commandArgs(trailingOnly = TRUE)) {
-    pd = as.data.frame(installed.packages())[,
-        c("Package", "Version", "Priority")]
-    rownames(pd) = NULL
+    pd = as.data.frame(installed.packages())[, c("Package", "Version", "Priority")]
+    rownames(pd) = NULL 
     cat(sprintf("GPSeq-RadiCal %s\n", version))
-    print(R.version)
-    print(pd)
-    quit()
+    print(R.version); print(pd); quit()
 }
 
 # DEPENDENCIES =================================================================
 
-depends_on = c("argparser", "data.table", "logging",
-    "outliers", "pbapply", "rtracklayer")
+depends_on = c("argparser", "data.table", "logging", "outliers", "pbapply", "rtracklayer")
 tmp = lapply(depends_on, function(x) {
     expr = x %in% names(installed.packages()[, "Package"])
     if (!expr) {
@@ -42,8 +38,7 @@ pbapply::pboptions(type = "timer")
 chrom_to_chrom_id = function(chrom, nchrom = 24, hetero = c("X", "Y")) {
     # Convert a chromosome name (e.g., "chr1", "chrX") to a numerical ID.
     if (grepl(":", chrom)) {
-        return(floor(as.numeric(gsub(":", ".",
-            substr(chrom, 4, nchar(chrom))))))
+        return(floor(as.numeric(gsub(":", ".", substr(chrom, 4, nchar(chrom))))))
     } else {
         chrom = unlist(strsplit(chrom, "_", fixed = TRUE))[1]
         chrom_id = substr(chrom, 4, nchar(chrom))
@@ -61,10 +56,8 @@ add_chrom_id = function(data, key = "chrom", nchrom = 24, hetero = c("X", "Y")) 
     stopifnot(data.table::is.data.table(data))
     stopifnot("chrom" %in% colnames(data))
 
-    cid_table = data.table::data.table(
-        chrom = as.character(unique(data$chrom)))
-    cid_table$chrom_id = unlist(lapply(
-        cid_table$chrom, FUN = chrom_to_chrom_id, nchrom, hetero))
+    cid_table = data.table::data.table(chrom = as.character(unique(data$chrom)))
+    cid_table$chrom_id = unlist(lapply(cid_table$chrom, FUN = chrom_to_chrom_id, nchrom, hetero))
     data.table::setkeyv(cid_table, "chrom")
     data.table::setkeyv(data, key)
 
@@ -96,8 +89,7 @@ bstring2specs = function(bstring) {
 
 scientific_with_signif_digits = function(x) {
     x_string = sprintf("%d", x)
-    integer_part = ifelse("."  %in% x_string,
-        strsplit(x_string, ".", fixed = TRUE)[[1]], x_string)
+    integer_part = ifelse("."  %in% x_string, strsplit(x_string, ".", fixed = TRUE)[[1]], x_string)
     for (i in seq(nchar(integer_part))) {
         base = as.numeric(substr(integer_part, 1, i))
         exponent = nchar(integer_part) - i
@@ -109,8 +101,7 @@ scientific_with_signif_digits = function(x) {
 }
 
 mk_genome_wide_bins = function(brid, bspecs, cinfo, args) {
-    bins = cinfo[, .(start = seq(start, end, by = bspecs[brid, step]),
-        size = end), by = chrom]
+    bins = cinfo[, .(start = seq(start, end, by = bspecs[brid, step]), size = end), by = chrom]
     bins[, end := start + bspecs[brid, size] - 1]
     if (args$elongate_ter_bin) {
         bins = data.table::rbindlist(list(bins[end <= size, .(chrom, start, end)],
@@ -125,9 +116,7 @@ mk_genome_wide_bins = function(brid, bspecs, cinfo, args) {
     bins[, chrom := reorder(chrom, chrom_id)]
     bins[, chrom_id := NULL]
     bins = bins[order(chrom, start)]
-    bins$tag = bspecs[brid, paste0(
-        scientific_with_signif_digits(size), ":",
-        scientific_with_signif_digits(step))]
+    bins$tag = bspecs[brid, paste0(scientific_with_signif_digits(size),":",scientific_with_signif_digits(step))]
     bins[, start := floor(start)]
     bins[, end := ceiling(end)]
     return(bins)
@@ -140,14 +129,12 @@ mk_roi_centered_bins = function(brid, bspecs, rois) {
     half_width = ceiling(bspecs[brid, size] / 2)
     bins[, start := start - half_width]
     bins[, end := end + half_width]
-    bins$tag = bspecs[brid,
-        paste0(scientific_with_signif_digits(size), ":rois")]
+    bins$tag = bspecs[brid, paste0(scientific_with_signif_digits(size), ":rois")]
     return(bins)
 }
 
 import_gpseq_bed = function(brid, bmeta) {
-    assert("fpath" %in% colnames(bmeta),
-        "Missing 'fpath' column in metadata file.")
+    assert("fpath" %in% colnames(bmeta), "Missing 'fpath' column in metadata file.")
     brmeta = data.table::copy(bmeta[brid])
     o = data.table::as.data.table(rtracklayer::import.bed(brmeta$fpath))
     data.table::setnames(o, "seqnames", "chrom")
@@ -159,18 +146,15 @@ import_gpseq_bed = function(brid, bmeta) {
 
 parse_bed_meta = function(bbmeta, args) {
     logging::loginfo(sprintf("Reading %d bed files.", nrow(bbmeta)))
-    bd = data.table::rbindlist(pbapply::pblapply(seq_len(nrow(bbmeta)),
-        import_gpseq_bed, bbmeta, cl = args$threads))
+    bd = data.table::rbindlist(pbapply::pblapply(seq_len(nrow(bbmeta)), import_gpseq_bed, bbmeta, cl=args$threads))
     bd[, end := start]
     logging::loginfo(sprintf("Dcasting bed data."))
     dups = bd[, .N, by = c("chrom", "start", "end", "condition")][N != 1]
     if (0 != nrow(dups)) {
-        logging::logwarn(sprintf(
-            "Found %d duplicated regions, using minimum signal.", nrow(dups)))
+        logging::logwarn(sprintf("Found %d duplicated regions, using minimum signal.", nrow(dups)))
         print(dups)
     }
-    bd = data.table::dcast(bd, chrom + start + end ~ condition,
-        value.var = "score", fill = 0, fun.aggreg = min)
+    bd = data.table::dcast(bd, chrom + start + end ~ condition, value.var="score", fill=0, fun.aggreg=min)
     if (3 <= args$export_level) {
         logging::loginfo("Exporting dcasted input bed...")
         saveRDS(bd, file.path(args$exp_output_folder, "input_bed.rds"))
@@ -223,44 +207,34 @@ calc_condition_outliers_stats = function(x, specs) {
     assert(length(unique(x)) > 1,
             sprintf(names(x), " only consists of 1 value, cant calculate outliers.",
                     " Please check if you have enough reads in each condition after filter steps"))
-    is_outlier = outliers::scores(x,
-        type = specs$method, prob = 1 - specs$alpha, lim = specs$lim)
+    is_outlier = outliers::scores(x, type = specs$method, prob = 1 - specs$alpha, lim = specs$lim)
     ostats = as.numeric(summary(x[is_outlier]))
     ostats = c(ostats, sum(is_outlier), length(x))
     return(ostats)
 }
 
 rm_condition_outliers = function(x, specs) {
-    is_outlier = outliers::scores(x[0 != x],
-        type = specs$method, prob = 1 - specs$alpha, lim = specs$lim)
+    is_outlier = outliers::scores(x[0 != x], type = specs$method, prob = 1 - specs$alpha, lim = specs$lim)
     x[which(0 != x)[is_outlier]] = 0
     return(x)
 }
 
 calc_bed_outliers_stats = function(bd, args) {
-    logging::loginfo(sprintf(
-        "Calculating outlier stats. [%s]", args$bed_outlier_tag))
-    outlier_stats = bd[, lapply(.SD,
-        calc_condition_outliers_stats, otag2specs(args$bed_outlier_tag)),
-        .SDcols = args$cond_cols]
+    logging::loginfo(sprintf("Calculating outlier stats. [%s]", args$bed_outlier_tag))
+    outlier_stats = bd[, lapply(.SD, calc_condition_outliers_stats, otag2specs(args$bed_outlier_tag)),.SDcols = args$cond_cols]
     outlier_stats = data.table::data.table(t(outlier_stats))
     colnames(outlier_stats) = c(names(summary(1)), "nout", "ntot")
     outlier_stats_opath = file.path(args$exp_output_folder, "outlier_stats.tsv")
-    logging::loginfo(sprintf(
-        "Exporting outlier stats to '%s'.", outlier_stats_opath))
+    logging::loginfo(sprintf("Exporting outlier stats to '%s'.", outlier_stats_opath))
     data.table::fwrite(outlier_stats, outlier_stats_opath, sep = "\t")
 }
 
 rm_bed_outliers = function(bd, args) {
-    logging::loginfo(sprintf(
-        "Removing outliers. [%s]", args$bed_outlier_tag))
-    bd[, c(args$cond_cols) := lapply(.SD,
-        rm_condition_outliers, otag2specs(args$bed_outlier_tag)),
-        .SDcols = args$cond_cols]
+    logging::loginfo(sprintf("Removing outliers. [%s]", args$bed_outlier_tag))
+    bd[, c(args$cond_cols) := lapply(.SD,rm_condition_outliers, otag2specs(args$bed_outlier_tag)),.SDcols = args$cond_cols]
     bd = bd[0 != apply(bd[, .SD, .SDcols = args$cond_cols], MARGIN = 1, FUN = sum)]
     if (3 <= args$export_level) {
-        logging::loginfo(
-            "Exporting dcasted input bed after outlier removal...")
+        logging::loginfo("Exporting dcasted input bed after outlier removal...")
         saveRDS(bd, file.path(args$exp_output_folder, "clean_bed.rds"))
     }
     return(bd)
@@ -295,8 +269,7 @@ bin_chromosome = function(
     data.table::setkeyv(nreads, c(bed3_colnames, "tag", "cid"))
 
     if ("universe" == args$site_domain) {
-        assert(!is.null(site_universe),
-            "Missing site universe data with site domain 'universe'.")
+        assert(!is.null(site_universe), "Missing site universe data with site domain 'universe'.")
         nsites = data.table::foverlaps(
             site_universe, bbins2[chrom == selected_chromosome]
             )[!is.na(start), .(
@@ -384,22 +357,16 @@ apply_intersection_site_domain = function(bd, args) {
         nrow(bd), length(n_condition_empty),
         nrow(bd) / length(n_condition_empty) * 100))
     if (3 <= args$export_level) {
-        logging::loginfo(
-            "Exporting dcasted input bed after site intersection...")
-        saveRDS(bd, file.path(args$exp_output_folder,
-            "clean_bed.intersected.rds"))
+        logging::loginfo("Exporting dcasted input bed after site intersection...")
+        saveRDS(bd, file.path(args$exp_output_folder, "clean_bed.intersected.rds"))
     }
     return(bd)
 }
 
 mask_dcasted_bed = function(bd, args) {
-    assert(file.exists(args$mask_bed),
-        sprintf("Cannot find mask bed file '%s'.", args$mask_bed))
-    mask = data.table::as.data.table(
-        rtracklayer::import.bed(args$mask_bed))[, .(chrom = seqnames, start, end)]
-    assert(all(mask[, start <= end]), sprintf(
-        "Mask not conforming to end >= start condition on row: %d",
-        which(mask[, start > end])))
+    assert(file.exists(args$mask_bed), sprintf("Cannot find mask bed file '%s'.", args$mask_bed))
+    mask = data.table::as.data.table(rtracklayer::import.bed(args$mask_bed))[, .(chrom = seqnames, start, end)]
+    assert(all(mask[, start <= end]), sprintf("Mask not conforming to end >= start condition on row: %d",which(mask[, start > end])))
     data.table::setkeyv(mask, bed3_colnames)
     data.table::setkeyv(bd, bed3_colnames)
     masked = data.table::foverlaps(bd, mask)
@@ -408,8 +375,7 @@ mask_dcasted_bed = function(bd, args) {
             return(x)
         }), .SDcols = args$cond_cols]
     masked = masked[, bed3_colnames[2:3] := .(NULL, NULL)]
-    data.table::setnames(masked,
-        paste0("i.", bed3_colnames[2:3]), bed3_colnames[2:3])
+    data.table::setnames(masked,paste0("i.", bed3_colnames[2:3]), bed3_colnames[2:3])
     if (3 <= args$export_level) {
         logging::loginfo("Exporting masked dcasted input bed...")
         saveRDS(masked, file.path(args$exp_output_folder, "masked_bed.rds"))
@@ -427,8 +393,7 @@ mask_binned_track = function(bbins, mask) {
         .(tag, nreads, nsites, lib_nreads, chrom_nreads,
             mask_overlaps = .N, mask_overlapped = !is.na(start)),
         by = c(bed3_colnames[1], paste0("i.", bed3_colnames[2:3]),  "cid")])
-    data.table::setnames(masked,
-        paste0("i.", bed3_colnames[2:3]), bed3_colnames[2:3])
+    data.table::setnames(masked,paste0("i.", bed3_colnames[2:3]), bed3_colnames[2:3])
     masked[!(mask_overlapped), mask_overlaps := 0]
     masked[, mask_overlapped := NULL]
     masked[0 < mask_overlaps, c("nreads", "nsites") := .(0, 0)]
@@ -440,11 +405,8 @@ mask_binned_track = function(bbins, mask) {
 mask_binned = function(binned, args) {
     assert(file.exists(args$mask_bed),
         sprintf("Cannot find mask bed file '%s'.", args$mask_bed))
-    mask = data.table::as.data.table(
-        rtracklayer::import.bed(args$mask_bed))[, .(chrom = seqnames, start, end)]
-    assert(all(mask[, start <= end]), sprintf(
-        "Mask not conforming to end >= start condition on row: %d",
-        which(mask[, start > end])))
+    mask = data.table::as.data.table(rtracklayer::import.bed(args$mask_bed))[, .(chrom = seqnames, start, end)]
+    assert(all(mask[, start <= end]), sprintf("Mask not conforming to end >= start condition on row: %d",which(mask[, start > end])))
     data.table::setkeyv(mask, bed3_colnames)
     binned = pbapply::pblapply(binned, mask_binned_track, mask, cl = args$threads)
     if (1 <= args$export_level) {
@@ -457,8 +419,7 @@ mask_binned = function(binned, args) {
 rescale_estimated = function(estimated, args) {
     logging::loginfo(sprintf("Rescaling estimates... [%s]", args$normalize_by))
     if ("chrom" == args$normalize_by) {
-        if (args$chromosome_wide) logging::logwarn(
-            "Skipped rescaling by chromosome for chromosome-wide bins.")
+        if (args$chromosome_wide) logging::logwarn("Skipped rescaling by chromosome for chromosome-wide bins.")
         rescaled = pbapply::pblapply(estimated, function(estmd) {
             if ("chrom:wide" == estmd[1, tag]) return(estmd)
             estmd = rescale_by_chr(estmd, otag2specs(args$score_outlier_tag))
@@ -484,8 +445,7 @@ process_experiment = function(bbmeta, bins, args) {
         sprintf("Provide at least two bed files. [%s]", exid))
 
     logging::loginfo("Storing metadata.")
-    data.table::fwrite(bbmeta,
-        file.path(args$exp_output_folder, "bed.metadata.tsv"), sep = "\t")
+    data.table::fwrite(bbmeta, file.path(args$exp_output_folder, "bed.metadata.tsv"), sep="\t")
 
     args$cond_cols = sprintf("cid_%d", seq_len(nrow(bbmeta)))
 
@@ -510,8 +470,7 @@ process_experiment = function(bbmeta, bins, args) {
         if ("intersection" == args$site_domain) {
             bd = apply_intersection_site_domain(bd, args)
         } else if ("universe" == args$site_domain) {
-            logging::loginfo(sprintf(
-                "Reading site bed file '%s'", args$site_bed))
+            logging::loginfo(sprintf("Reading site bed file '%s'", args$site_bed))
             site_universe = data.table::as.data.table(
                 rtracklayer::import.bed(args$site_bed))[,
                     .(chrom = seqnames, start, end = start)]
@@ -540,12 +499,10 @@ process_experiment = function(bbmeta, bins, args) {
     # Calculate centrality -----------------------------------------------------
 
         logging::loginfo(sprintf("Estimating centrality..."))
-        estimated = pbapply::pblapply(
-            binned, estimate_centrality, args$normalize_by, cl = args$threads)
+        estimated = pbapply::pblapply(binned, estimate_centrality, args$normalize_by, cl = args$threads)
         if (1 <= args$export_level) {
             logging::loginfo(sprintf("Exporting estimated centrality..."))
-            tmp = lapply(estimated,
-                export_estimated_centrality, args$exp_output_folder)
+            tmp = lapply(estimated,export_estimated_centrality, args$exp_output_folder)
         }
 
     # Rescale estimates --------------------------------------------------------
@@ -553,15 +510,12 @@ process_experiment = function(bbmeta, bins, args) {
         if (0 == nchar(args$score_outlier_tag)) {
             logging::loginfo(sprintf("Skipped rescaling."))
             logging::loginfo(sprintf("Exporting estimated centrality..."))
-            tmp = lapply(estimated, export_estimated_centrality,
-                args$exp_output_folder, format = "tsv.gz")
-            saveRDS(estimated, file.path(args$exp_output_folder,
-                "gpseq-radical.out.rds"))
+            tmp = lapply(estimated, export_estimated_centrality,args$exp_output_folder, format = "tsv.gz")
+            saveRDS(estimated, file.path(args$exp_output_folder,"gpseq-radical.out.rds"))
             return(estimated)
         } else {
             rescaled = rescale_estimated(estimated, args)
-            saveRDS(rescaled, file.path(args$exp_output_folder,
-                "gpseq-radical.out.rds"))
+            saveRDS(rescaled, file.path(args$exp_output_folder,"gpseq-radical.out.rds"))
             return(rescaled)
         }
 }
@@ -764,13 +718,11 @@ if ("universe" == args$site_domain) {
     logging::loginfo(sprintf("Created output folder '%s'.", args$output_folder))
     settings_path = file.path(args$output_folder, "gpseq-radical.opts.rds")
     saveRDS(args, settings_path)
-    logging::loginfo(sprintf(
-        "Exported input parameters to '%s'.", settings_path))
+    logging::loginfo(sprintf("Exported input parameters to '%s'.", settings_path))
 
     data.table::setDTthreads(args$threads)
     if (args$threads != data.table::getDTthreads()) {
-        logging::logwarn(sprintf("Changed from the requested %d to %d threads.",
-            args$threads, data.table::getDTthreads()))
+        logging::logwarn(sprintf("Changed from the requested %d to %d threads.",args$threads, data.table::getDTthreads()))
         args$threads = data.table::getDTthreads()
     }
 
@@ -780,8 +732,7 @@ if ("universe" == args$site_domain) {
     bmeta = data.table::fread(args$bmeta_path)
     assert(2 <= nrow(bmeta), "Provide at least two bed files.")
     logging::loginfo("Storing metadata.")
-    data.table::fwrite(bmeta,
-        file.path(args$output_folder, "bed.metadata.tsv"), sep = "\t")
+    data.table::fwrite(bmeta,file.path(args$output_folder, "bed.metadata.tsv"), sep = "\t")
 
 # Read chromosome info bed -----------------------------------------------------
 
@@ -791,29 +742,20 @@ if ("universe" == args$site_domain) {
             logging::loginfo("Opening UCSC browser session...")
             ucsc = rtracklayer::browserSession("UCSC")
             rtracklayer::genome(ucsc) = args$ref_genome
-            logging::loginfo(sprintf(
-                "Querying UCSC for '%s' chromosome info...",
-                rtracklayer::genome(ucsc)))
-            cinfo = data.table::data.table(rtracklayer::getTable(
-                rtracklayer::ucscTableQuery(ucsc,
-                    table = "chromInfo")))
+            logging::loginfo(sprintf("Querying UCSC for '%s' chromosome info...",rtracklayer::genome(ucsc)))
+            cinfo = data.table::data.table(rtracklayer::getTable(rtracklayer::ucscTableQuery(ucsc,table="chromInfo")))
             cinfo = cinfo[, .(start = 1, end = size), by = chrom]
         } else {
-            assert(file.exists(args$cinfo_path),
-                sprintf("Cannot find chromosome info bed file '%s'.",
-                    args$cinfo_path))
-            logging::loginfo(sprintf(
-                "Reading chromosome info from '%s'.", args$cinfo_path))
-            cinfo = data.table::as.data.table(
-                rtracklayer::import.bed(args$cinfo_path))
+            assert(file.exists(args$cinfo_path),sprintf("Cannot find chromosome info bed file '%s'.",args$cinfo_path))
+            logging::loginfo(sprintf("Reading chromosome info from '%s'.", args$cinfo_path))
+            cinfo = data.table::as.data.table(rtracklayer::import.bed(args$cinfo_path))
             data.table::setnames(cinfo, "seqnames", "chrom")
             cinfo[, c("width", "strand") := NULL]
             cinfo[, start := 1] # Added this because input chromsize format 
             # is different when calculating it from genome.fa.fai 
         }
         assert(!is.null(cinfo), "Failed to build or retrieve chromosome info.")
-        assert(nrow(cinfo[start == 1]) == nrow(cinfo),
-            "Chromosome start should be 1.")
+        assert(nrow(cinfo[start == 1]) == nrow(cinfo),"Chromosome start should be 1.")
     }
 
 # Retain chromosomes according to chromosome tag -------------------------------
@@ -841,10 +783,8 @@ if ("universe" == args$site_domain) {
     bspecs = bstring2specs(args$bin_tags)
     if (0 == nrow(bspecs)) bins = data.table::data.table()
     if (!is.na(args$bin_bed)) {
-        assert(file.exists(args$bin_bed), sprintf(
-            "Cannot find bin bed file '%s'.", args$bin_bed))
-        rois = data.table::as.data.table(rtracklayer::import.bed(args$bin_bed
-            ))[, .(chrom = seqnames, start, end)]
+        assert(file.exists(args$bin_bed), sprintf("Cannot find bin bed file '%s'.", args$bin_bed))
+        rois = data.table::as.data.table(rtracklayer::import.bed(args$bin_bed))[, .(chrom = seqnames, start, end)]
         if (0 == nrow(rois)) {
             bins = data.table::data.table()
         } else if (0 < nrow(bspecs)) {

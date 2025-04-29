@@ -199,28 +199,23 @@ otag2specs = function(otag) {
 }
 
 export_output = function(odata, odir, format, suffix, rm_tag = FALSE) {
+    
+    require(data.table)
+    options(scipen = 999) ### Preventing exponential numbers from appearing
+
     assert("tag" %in% colnames(odata), "Cannot find required 'tag' column.")
-    assert(format %in% c("tsv", "tsv.gz", "csv", "csv.gz", "rds"),
-        sprintf("Unrecognized output format '%s'.", format))
+    assert(format %in% c("tsv", "tsv.gz", "csv", "csv.gz", "rds"), sprintf("Unrecognized output format '%s'.", format))
+    ### Adjusting output names, while also removing "+" symbols
     opath_base = sprintf("%s.bins_%s", suffix, gsub(":", "_", odata[1, tag]))
+    opath_base = gsub("\\+", "", opath_base) 
+   
     columns_to_export = colnames(odata)
-    if (rm_tag) {
-        columns_to_export = columns_to_export["tag" != columns_to_export]
-    }
-    if ("rds" == format) {
-        saveRDS(odata[, .SD, .SDcols = columns_to_export],
-            file.path(odir, sprintf("%s.rds", opath_base)))
-    }
-    if (format %in% c("tsv", "tsv.gz")) {
-        data.table::fwrite(odata[, .SD, .SDcols = columns_to_export],
-            file.path(odir, sprintf("%s.%s", opath_base, format)),
-            sep = "\t", na = "NA", quote = FALSE)
-    }
-    if (format %in% c("csv", "csv.gz")) {
-        data.table::fwrite(odata[, .SD, .SDcols = columns_to_export],
-            file.path(odir, sprintf("%s.%s", opath_base, format)),
-            sep = ",", na = "NA", quote = FALSE)
-    }
+    if (rm_tag) { columns_to_export = columns_to_export["tag" != columns_to_export] }
+    outfile = odata[, .SD, .SDcols = columns_to_export] ### Final Output
+    
+    if ("rds" == format) { saveRDS(outfile, file.path(odir, sprintf("%s.rds", opath_base))) }
+    if (format %in% c("tsv", "tsv.gz")) { fwrite(outfile,file.path(odir, sprintf("%s.%s",opath_base,format)), sep="\t", na="NA", col.names=F, quote=F) }
+    if (format %in% c("csv", "csv.gz")) { fwrite(outfile,file.path(odir, sprintf("%s.%s",opath_base,format)), sep=",", na="NA", col.names=F, quote=F) }
 }
 
 calc_condition_outliers_stats = function(x, specs) {

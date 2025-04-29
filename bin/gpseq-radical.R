@@ -8,7 +8,7 @@
 
 # UTILITIES ====================================================================
 
-version = "v0.0.9"
+version = "v0.0.10"
 if ("--version" %in% commandArgs(trailingOnly = TRUE)) {
     cat(sprintf("GPSeq-RadiCal %s\n\n", version))
     quit()
@@ -730,6 +730,11 @@ if ("universe" == args$site_domain) {
 
     logging::loginfo(sprintf("Parsing metadata from '%s'.", args$bmeta_path))
     bmeta = data.table::fread(args$bmeta_path)
+
+    ## temporary fix for inter-versions compatibility
+    if (ncol(bmeta) == 5) { colnames(bmeta) = c("exid","cond","libid","fpath","group") }
+    if (ncol(bmeta) == 4) { colnames(bmeta) = c("exid","cond","libid","fpath") }
+                                    
     assert(2 <= nrow(bmeta), "Provide at least two bed files.")
     logging::loginfo("Storing metadata.")
     data.table::fwrite(bmeta,file.path(args$output_folder, "bed.metadata.tsv"), sep = "\t")

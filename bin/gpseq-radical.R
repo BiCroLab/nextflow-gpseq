@@ -750,11 +750,11 @@ if ("universe" == args$site_domain) {
 
 # Prelude ----------------------------------------------------------------------
 
-    assert(!dir.exists(args$output_folder), paste0(
-        sprintf("Output folder '%s' already exists. ", args$output_folder),
-        "This can lead to mixed settings output and should be avoided. ",
-        "Stopping."))
-    dir.create(args$output_folder)
+    # assert(!dir.exists(args$output_folder), paste0(
+    #     sprintf("Output folder '%s' already exists. ", args$output_folder),
+    #     "This can lead to mixed settings output and should be avoided. ",
+    #     "Stopping."))
+    if (!dir.exists(args$output_folder)) { dir.create(args$output_folder, recursive = TRUE) }
 
     logging::basicConfig()
     log_path = file.path(args$output_folder, "gpseq-radical.log")

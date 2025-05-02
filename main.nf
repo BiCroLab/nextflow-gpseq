@@ -91,30 +91,36 @@ process GET_CUTSITES {
 process EXTRACT {
 	label "process_low"
 	tag "fbarber extract on ${sample}"
-
+ 
 	container "library://ljwharbers/gpseq/fastx-barber:0.0.4"
-	
 	publishDir "${params.outdir}/logs", mode: 'copy', pattern: "*.log"
-
+ 
 	input:
-		tuple val(sample), path(reads)
+		tuple val(sample), val(barcode), path(reads)
 		val pattern
-	
 	output:
 		tuple val(sample), path("hq_${sample}.fastq.gz"), emit: hq_extracted
 		tuple val(sample), path("lq_${sample}.fastq.gz"), emit: lq_extracted
 		tuple val(sample), path("noprefix_${sample}.fastq.gz"), emit: unmatched_extracted
 		tuple val(sample), path("${sample}.log"), emit: log_extracted
-	
+
 	script:
 		"""
+		UMI_LENGTH=8
+		CS_LENGTH=4
+		BC_LENGTH=${barcode.size()}
+
+		// todo: adjust input channels and make UMI_LENGTH and CS_LENGTH dynamically inferred
+
+		pattern="umi\${UMI_LENGTH}bc\${BC_LENGTH}cs\${CS_LENGTH}"
+ 
 		fbarber flag extract ${reads} hq_${sample}.fastq.gz \\
-		--filter-qual-output lq_${sample}.fastq.gz \\
-		--unmatched-output noprefix_${sample}.fastq.gz \\
-		--log ${sample}.log --pattern ${pattern} --simple-pattern \\
-		--flagstats bc cs --filter-qual-flags umi,30,.2 \\
-		--threads ${task.cpus} --chunk-size 200000
-		"""
+		 --filter-qual-output lq_${sample}.fastq.gz \\
+		 --unmatched-output noprefix_${sample}.fastq.gz \\
+		 --log ${sample}.log --pattern \${pattern} --simple-pattern \\
+		 --flagstats bc cs --filter-qual-flags umi,30,.2 \\
+		 --threads ${task.cpus} --chunk-size 200000
+   		"""
 }
 
 // Filter reads checking for correct barcode and cutsite
@@ -285,8 +291,7 @@ process ASSIGN_UMIS {
 		
 	script:
 		"""
-		umis2cutsite.py ${umi_clean} ${ref_cutsites} "${sample}_umi_atcs.txt.gz" \\
-		--compress --threads ${task.cpus}
+		umis2cutsite.py ${umi_clean} ${ref_cutsites} "${sample}_umi_atcs.txt.gz" --compress --threads ${task.cpus}
 		"""
 }
 
@@ -577,12 +582,18 @@ workflow {
 	
 	// Run workflow
 	
-	// Initial QC and generating cutsites
-	fastqc_ch = FASTQC(samplesheet.input_ch) // FASTQC
-	cutsites_ch = GET_CUTSITES(params.fasta, params.cutsite, params.enzyme) // Getting cutsite locations
-	
+        // Initial QC and generating cutsites
+        fastqc_ch = FASTQC(samplesheet.input_ch) // FASTQC
+        cutsites_ch = GET_CUTSITES(params.fasta, params.cutsite, params.enzyme) // Getting cutsite locations
+
 	// Main preprocessing pipeline
-	extract_ch = EXTRACT(samplesheet.input_ch, params.pattern) // Extracting barcode, cutsite and UMI
+	extract_ch = samplesheet.input_ch
+                 .join(samplesheet.barcode_ch)
+                 .map { sample, reads, barcode -> tuple(sample, barcode, reads) }
+                 .set { extract_input }
+
+        extract_ch = EXTRACT(extract_input, params.pattern) // Extracting barcode, cutsite and UMI
+
 	filter_ch = FILTER(samplesheet.barcode_ch.join(extract_ch.hq_extracted), params.cutsite) // Filtering reads
 	align_ch = ALIGN(filter_ch.filtered, params.fasta, params.bwt2index) // Aligning reads
 	filterbam_ch = FILTER_BAM(align_ch.bam) // Filtering bamfile

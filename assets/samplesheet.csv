@@ -1,3 +1,4 @@
 sample,fastq,barcode,condition
-sample_1,https://github.com/ljwharbers/gpseq_data/raw/main/data/sample1_R1.fastq.gz,CATCACGC,7min
-sample_2,https://github.com/ljwharbers/gpseq_data/raw/main/data/sample2_R1.fastq.gz,CATCACGC,10min
+sample1,/full/path/to/sample1_R1.fastq.gz,CATCACGC,15
+sample2,/full/path/to/sample2_R1.fastq.gz,ACGACCGC,300
+sample3,/full/path/to/sample3_R1.fastq.gz,TGATGCGC,900

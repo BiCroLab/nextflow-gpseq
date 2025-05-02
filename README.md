@@ -1,11 +1,18 @@
 ## Nextflow pipeline for processing of GPSeq data
 
-### Requirements
-To be able to run this pipeline you need nextflow (version 23.10 or higher) and singularity (tested on version 3.8.6) installed. This does not work on Mac.
+Check here the original [GPSeq paper](https://doi.org/10.1038/s41587-020-0519-y).
 
-The easiest way to install these tools is with conda package manager.  
-For example using the following lines (assuming you have conda installed):  
+<br>
+
+### Requirements
+- nextflow (tested onversion 23.10 or higher)
+- singularity (tested on version 3.8.6)
+
 `conda create -n nextflow -c conda-forge -c bioconda nextflow=23.10.0 singularity=3.8*`
+
+<br>
+
+<!---
 
 If you don't have conda installed yet you can install and initialize it in the following way:  
 ```
@@ -19,21 +26,26 @@ rm -rf ~/miniconda3/miniconda.sh
 You can then activate the environment by running:  
 `conda activate nextflow`
 
-### Testing the pipeline
-First clone the pipeline (this will create a folder in your current working directory)  
+---> 
+ 
+
+
+### Getting Started
+The whole pipeline can be cloned in your current working directory with:  
 ```
-git clone https://github.com/ljwharbers/nextflow-gpseq
+git clone https://github.com/BiCroLab/nextflow-gpseq
 cd nextflow-gpseq
 ```
 
-You can test the pipeline by typing:  
-`nextflow run main.nf -profile test`  
+To test the pipeline with default settings and a test dataset: `nextflow run main.nf -profile test`  
 
-This will run it with default parameters and a test samplesheet and dataset that is included in the repository. If this runs without any issues you can run it in your own dataset.
+<br>
+
 ### Running the pipeline with your own dataset
 To run the pipeline with your own dataset, there are a few steps to take.
 
-1. Make a samplesheet. You will first need to create a `samplesheet`. An example samplesheet is located inside the repository `/assets/samplesheet.csv` and should be a comma separated file that consists of the following columns: `sample,fastq,barcode,condition` and each row should contain one sample.
+1. Make a samplesheet. You will first need to create a [`samplesheet`](/assets/samplesheet.csv). An example samplesheet is located inside the repository `/assets/samplesheet.csv`. This must be a comma separated file that consists of the following columns: `sample,fastq,barcode,condition`, with each row should contain one sample and sorted by digestion time-point.
+
 2. Adjust `nextflow.config`.  There are some default parameters used and specified in the configuration file and, depending on your most common usecase, it is advisable to change some of these defaults.
    * If you will mostly run GPSeq on human, you can write the path to your own local reference file and bowtie2 index in the config file under `fasta` and `bwt2index`. However, I recommend using the iGenomes reference files (described further down).
    * Check `max_memory` and `max_cpus`. It is important that these do not go above your system values.
